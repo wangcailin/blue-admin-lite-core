@@ -300,3 +300,17 @@ if (!function_exists('addtion'))
     }
 
 }
+
+if (!function_exists('get_proxy_ip')){
+    /**
+     * 获取客户端真实IP
+     * @return string
+     */
+    function get_proxy_ip() {
+        $socket = socket_create(AF_INET, SOCK_STREAM, 6);
+        $ret = socket_connect($socket,'ns1.dnspod.net',6666);
+        $buf = socket_read($socket, 16);
+        socket_close($socket);
+        return $buf;
+    }
+}
