@@ -10,31 +10,29 @@
 // | Author: liu21st <liu21st@gmail.com>
 // +----------------------------------------------------------------------
 
-use think\Env;
-
 return [
     // 数据库类型
-    'type'            => Env::get('database.type', 'mysql'),
+    'type'            => 'mysql',
     // 服务器地址
-    'hostname'        => Env::get('database.hostname', '127.0.0.1'),
+    'hostname'        => '127.0.0.1',
     // 数据库名
-    'database'        => Env::get('database.database', 'blueadminlite'),
+    'database'        => 'blueadminlite',
     // 用户名
-    'username'        => Env::get('database.username', 'root'),
+    'username'        => 'root',
     // 密码
-    'password'        => Env::get('database.password', 'root'),
+    'password'        => 'root',
     // 端口
-    'hostport'        => Env::get('database.hostport', ''),
+    'hostport'        => '',
     // 连接dsn
     'dsn'             => '',
     // 数据库连接参数
     'params'          => [],
     // 数据库编码默认采用utf8
-    'charset'         => Env::get('database.charset', 'utf8'),
+    'charset'         => 'utf8',
     // 数据库表前缀
-    'prefix'          => Env::get('database.prefix', 'blue_'),
+    'prefix'          => 'blue_',
     // 数据库调试模式
-    'debug'           => Env::get('database.debug', true),
+    'debug'           => true,
     // 数据库部署方式:0 集中式(单一服务器),1 分布式(主从服务器)
     'deploy'          => 0,
     // 数据库读写是否分离 主从式有效
