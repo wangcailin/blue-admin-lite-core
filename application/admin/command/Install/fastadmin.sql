@@ -253,6 +253,13 @@ INSERT INTO `fa_auth_rule` VALUES (84, 'file', 79, 'user/rule/multi', 'Multi', '
 INSERT INTO `fa_auth_rule` VALUES (85, 'file', 2, 'general/database', '数据库管理', 'fa fa-database', '', '可在线进行一些简单的数据库表优化或修复,查看表结构和数据。也可以进行SQL语句的操作', 1, 1522649143, 1522649143, 0, 'normal');
 INSERT INTO `fa_auth_rule` VALUES (86, 'file', 85, 'general/database/index', '查看', 'fa fa-circle-o', '', '', 0, 1522649143, 1522649143, 0, 'normal');
 INSERT INTO `fa_auth_rule` VALUES (87, 'file', 85, 'general/database/query', '查询', 'fa fa-circle-o', '', '', 0, 1522649143, 1522649143, 0, 'normal');
+INSERT INTO `fa_auth_rule` VALUES (88, 'file', 0, 'command', '在线命令管理', 'fa fa-terminal', '', '', 1, 1522652595, 1522652595, 0, 'normal');
+INSERT INTO `fa_auth_rule` VALUES (89, 'file', 88, 'command/index', '查看', 'fa fa-circle-o', '', '', 0, 1522652595, 1522652595, 0, 'normal');
+INSERT INTO `fa_auth_rule` VALUES (90, 'file', 88, 'command/add', '添加', 'fa fa-circle-o', '', '', 0, 1522652595, 1522652595, 0, 'normal');
+INSERT INTO `fa_auth_rule` VALUES (91, 'file', 88, 'command/detail', '详情', 'fa fa-circle-o', '', '', 0, 1522652595, 1522652595, 0, 'normal');
+INSERT INTO `fa_auth_rule` VALUES (92, 'file', 88, 'command/execute', '运行', 'fa fa-circle-o', '', '', 0, 1522652595, 1522652595, 0, 'normal');
+INSERT INTO `fa_auth_rule` VALUES (93, 'file', 88, 'command/del', '删除', 'fa fa-circle-o', '', '', 0, 1522652595, 1522652595, 0, 'normal');
+INSERT INTO `fa_auth_rule` VALUES (94, 'file', 88, 'command/multi', '批量更新', 'fa fa-circle-o', '', '', 0, 1522652595, 1522652595, 0, 'normal');
 COMMIT;
 
 -- ----------------------------
