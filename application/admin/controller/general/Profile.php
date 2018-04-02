@@ -4,7 +4,7 @@ namespace app\admin\controller\general;
 
 use app\admin\model\Admin;
 use app\common\controller\Backend;
-use blue\Random;
+use fast\Random;
 use think\Session;
 
 /**

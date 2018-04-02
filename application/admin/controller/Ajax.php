@@ -3,7 +3,7 @@
 namespace app\admin\controller;
 
 use app\common\controller\Backend;
-use blue\Random;
+use fast\Random;
 use think\Cache;
 use think\Config;
 use think\Db;

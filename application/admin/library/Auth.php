@@ -3,16 +3,17 @@
 namespace app\admin\library;
 
 use app\admin\model\Admin;
-use blue\Random;
-use blue\Tree;
+use fast\Random;
+use fast\Tree;
 use think\Config;
 use think\Cookie;
 use think\Request;
 use think\Session;
 
-class Auth extends \blue\Auth
+class Auth extends \fast\Auth
 {
 
+    protected $_error = '';
     protected $requestUri = '';
     protected $breadcrumb = [];
     protected $logined = false; //登录状态
@@ -27,24 +28,39 @@ class Auth extends \blue\Auth
         return Session::get('admin.' . $name);
     }
 
+    /**
+     * 管理员登录
+     * 
+     * @param   string  $username   用户名
+     * @param   string  $password   密码
+     * @param   int     $keeptime   有效时长
+     * @return  boolean
+     */
     public function login($username, $password, $keeptime = 0)
     {
         $admin = Admin::get(['username' => $username]);
         if (!$admin)
         {
+            $this->setError('Username is incorrect');
+            return false;
+        }
+        if ($admin->loginfailure >= 3 && time() - $admin->updatetime < 86400)
+        {
+            $this->setError('Please try again after 1 day');
             return false;
         }
         if ($admin->password != md5(md5($password) . $admin->salt))
         {
             $admin->loginfailure++;
             $admin->save();
+            $this->setError('Password is incorrect');
             return false;
         }
         $admin->loginfailure = 0;
         $admin->logintime = time();
         $admin->token = Random::uuid();
         $admin->save();
-        Session::set("admin", $admin);
+        Session::set("admin", $admin->toArray());
         $this->keeplogin($keeptime);
         return true;
     }
@@ -103,8 +119,9 @@ class Auth extends \blue\Auth
 
     /**
      * 刷新保持登录的Cookie
-     * @param int $keeptime
-     * @return boolean
+     * 
+     * @param   int     $keeptime
+     * @return  boolean
      */
     protected function keeplogin($keeptime = 0)
     {
@@ -113,7 +130,7 @@ class Auth extends \blue\Auth
             $expiretime = time() + $keeptime;
             $key = md5(md5($this->id) . md5($keeptime) . md5($expiretime) . $this->token);
             $data = [$this->id, $keeptime, $expiretime, $key];
-            Cookie::set('keeplogin', implode('|', $data));
+            Cookie::set('keeplogin', implode('|', $data), 86400 * 30);
             return true;
         }
         return false;
@@ -167,8 +184,8 @@ class Auth extends \blue\Auth
         //判断是否同一时间同一账号只能在一个地方登录
         if (Config::get('fastadmin.login_unique'))
         {
-            $my = Admin::get($admin->id);
-            if (!$my || $my->token != $admin->token)
+            $my = Admin::get($admin['id']);
+            if (!$my || $my['token'] != $admin['token'])
             {
                 return false;
             }
@@ -256,7 +273,7 @@ class Auth extends \blue\Auth
             $groupIds[] = $v['id'];
         }
         // 取出所有分组
-        $groupList = model('AuthGroup')->all(['status' => 'normal']);
+        $groupList = \app\admin\model\AuthGroup::where(['status' => 'normal'])->select();
         $objList = [];
         foreach ($groups as $K => $v)
         {
@@ -293,8 +310,8 @@ class Auth extends \blue\Auth
         if (!$this->isSuperAdmin())
         {
             $groupIds = $this->getChildrenGroupIds(false);
-            $authGroupList = model('AuthGroupAccess')
-                    ->field('uid,group_id')
+            $authGroupList = \app\admin\model\AuthGroupAccess::
+                    field('uid,group_id')
                     ->where('group_id', 'in', $groupIds)
                     ->select();
 
@@ -390,7 +407,7 @@ class Auth extends \blue\Auth
         $select_id = 0;
         $pinyin = new \Overtrue\Pinyin\Pinyin('Overtrue\Pinyin\MemoryFileDictLoader');
         // 必须将结果集转换为数组
-        $ruleList = collection(model('AuthRule')->where('ismenu', 1)->order('weigh', 'desc')->cache("__menu__")->select())->toArray();
+        $ruleList = collection(\app\admin\model\AuthRule::where('status', 'normal')->where('ismenu', 1)->order('weigh', 'desc')->cache("__menu__")->select())->toArray();
         foreach ($ruleList as $k => &$v)
         {
             if (!in_array($v['name'], $userRule))
@@ -409,6 +426,26 @@ class Auth extends \blue\Auth
         Tree::instance()->init($ruleList);
         $menu = Tree::instance()->getTreeMenu(0, '<li class="@class"><a href="@url@addtabs" addtabs="@id" url="@url" py="@py" pinyin="@pinyin"><i class="@icon"></i> <span>@title</span> <span class="pull-right-container">@caret @badge</span></a> @childlist</li>', $select_id, '', 'ul', 'class="treeview-menu"');
         return $menu;
+    }
+
+    /**
+     * 设置错误信息
+     *
+     * @param $error 错误信息
+     */
+    public function setError($error)
+    {
+        $this->_error = $error;
+        return $this;
+    }
+
+    /**
+     * 获取错误信息
+     * @return string
+     */
+    public function getError()
+    {
+        return $this->_error ? __($this->_error) : '';
     }
 
 }

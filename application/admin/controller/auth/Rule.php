@@ -3,7 +3,7 @@
 namespace app\admin\controller\auth;
 
 use app\common\controller\Backend;
-use blue\Tree;
+use fast\Tree;
 use think\Cache;
 
 /**

@@ -15,7 +15,7 @@ trait Backend
         if ($this->request->isAjax())
         {
             //如果发送的来源是Selectpage，则转发到Selectpage
-            if ($this->request->request('pkey_name'))
+            if ($this->request->request('keyField'))
             {
                 return $this->selectpage();
             }
@@ -31,6 +31,7 @@ trait Backend
                     ->limit($offset, $limit)
                     ->select();
 
+            $list = collection($list)->toArray();
             $result = array("total" => $total, "rows" => $list);
 
             return json($result);
@@ -78,14 +79,7 @@ trait Backend
             $params = $this->request->post("row/a");
             if ($params)
             {
-                /*
-                 * 已经弃用,如果为了兼容老版可取消注释
-                  foreach ($params as $k => &$v)
-                  {
-                  $v = is_array($v) ? implode(',', $v) : $v;
-                  }
-                 */
-                if ($this->dataLimit)
+                if ($this->dataLimit && $this->dataLimitFieldAutoFill)
                 {
                     $params[$this->dataLimitField] = $this->auth->id;
                 }
@@ -139,13 +133,6 @@ trait Backend
             $params = $this->request->post("row/a");
             if ($params)
             {
-                /*
-                 * 已经弃用,如果为了兼容老版可取消注释
-                  foreach ($params as $k => &$v)
-                  {
-                  $v = is_array($v) ? implode(',', $v) : $v;
-                  }
-                 */
                 try
                 {
                     //是否采用模型验证
@@ -281,7 +268,8 @@ trait Backend
                     {
                         $this->model->where($this->dataLimitField, 'in', $adminIds);
                     }
-                    $count = $this->model->where($this->model->getPk(), 'in', $ids)->update($values);
+                    $this->model->where($this->model->getPk(), 'in', $ids);
+                    $count = $this->model->allowField(true)->isUpdate(true)->save($values);
                     if ($count)
                     {
                         $this->success();

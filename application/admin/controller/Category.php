@@ -4,7 +4,7 @@ namespace app\admin\controller;
 
 use app\common\controller\Backend;
 use app\common\model\Category as CategoryModel;
-use blue\Tree;
+use fast\Tree;
 
 /**
  * 分类管理
@@ -23,7 +23,7 @@ class Category extends Backend
     {
         parent::_initialize();
         $this->request->filter(['strip_tags']);
-        $this->model = model('Category');
+        $this->model = model('app\common\model\Category');
 
         $tree = Tree::instance();
         $tree->init(collection($this->model->order('weigh desc,id desc')->select())->toArray(), 'pid');
@@ -46,22 +46,33 @@ class Category extends Backend
         if ($this->request->isAjax())
         {
             $search = $this->request->request("search");
+            $type = $this->request->request("type");
+
             //构造父类select列表选项数据
             $list = [];
-            if ($search)
-            {
+
                 foreach ($this->categorylist as $k => $v)
                 {
-                    if (stripos($v['name'], $search) !== false || stripos($v['nickname'], $search) !== false)
-                    {
-                        $list[] = $v;
+                    if ($search) {
+                        if ($v['type'] == $type && stripos($v['name'], $search) !== false || stripos($v['nickname'], $search) !== false)
+                        {
+                            if($type == "all" || $type == null) {
+                                $list = $this->categorylist;
+                            } else {
+                                $list[] = $v;
+                            }
+                        }
+                    } else {
+                        if($type == "all" || $type == null) {
+                            $list = $this->categorylist;
+                        } else if ($v['type'] == $type){
+                            $list[] = $v;
+                        }
+
                     }
+
                 }
-            }
-            else
-            {
-                $list = $this->categorylist;
-            }
+
             $total = count($list);
             $result = array("total" => $total, "rows" => $list);
 

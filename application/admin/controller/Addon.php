@@ -5,6 +5,7 @@ namespace app\admin\controller;
 use app\common\controller\Backend;
 use think\addons\AddonException;
 use think\addons\Service;
+use think\Cache;
 use think\Config;
 use think\Exception;
 
@@ -12,7 +13,7 @@ use think\Exception;
  * 插件管理
  *
  * @icon fa fa-circle-o
- * @remark 可在线安装、卸载、禁用、启用插件，同时支持添加本地插件。FastAdmin已上线插件商店 ，你可以发布你的免费或付费插件：<a href="http://www.fastadmin.net/store.html" target="_blank">http://www.fastadmin.net/store.html</a>
+ * @remark 可在线安装、卸载、禁用、启用插件，同时支持添加本地插件。FastAdmin已上线插件商店 ，你可以发布你的免费或付费插件：<a href="https://www.fastadmin.net/store.html" target="_blank">https://www.fastadmin.net/store.html</a>
  */
 class Addon extends Backend
 {
@@ -62,7 +63,6 @@ class Addon extends Backend
             $params = $this->request->post("row/a");
             if ($params)
             {
-                $configList = [];
                 foreach ($config as $k => &$v)
                 {
                     if (isset($params[$v['name']]))
@@ -124,9 +124,18 @@ class Addon extends Backend
         {
             $uid = $this->request->post("uid");
             $token = $this->request->post("token");
-            Service::install($name, $force, ['uid' => $uid, 'token' => $token]);
+            $version = $this->request->post("version");
+            $faversion = $this->request->post("faversion");
+            $extend = [
+                'uid'       => $uid,
+                'token'     => $token,
+                'version'   => $version,
+                'faversion' => $faversion
+            ];
+            Service::install($name, $force, $extend);
             $info = get_addon_info($name);
             $info['config'] = get_addon_config($name) ? 1 : 0;
+            $info['state'] = 1;
             $this->success(__('Install successful'), null, ['addon' => $info]);
         }
         catch (AddonException $e)
@@ -182,6 +191,7 @@ class Addon extends Backend
             $action = $action == 'enable' ? $action : 'disable';
             //调用启用、禁用的方法
             Service::$action($name, $force);
+            Cache::rm('__menu__');
             $this->success(__('Operate successful'));
         }
         catch (AddonException $e)
@@ -283,6 +293,43 @@ class Addon extends Backend
     }
 
     /**
+     * 更新插件
+     */
+    public function upgrade()
+    {
+        $name = $this->request->post("name");
+        if (!$name)
+        {
+            $this->error(__('Parameter %s can not be empty', 'name'));
+        }
+        try
+        {
+            $uid = $this->request->post("uid");
+            $token = $this->request->post("token");
+            $version = $this->request->post("version");
+            $faversion = $this->request->post("faversion");
+            $extend = [
+                'uid'       => $uid,
+                'token'     => $token,
+                'version'   => $version,
+                'faversion' => $faversion
+            ];
+            //调用更新的方法
+            Service::upgrade($name, $extend);
+            Cache::rm('__menu__');
+            $this->success(__('Operate successful'));
+        }
+        catch (AddonException $e)
+        {
+            $this->result($e->getData(), $e->getCode(), $e->getMessage());
+        }
+        catch (Exception $e)
+        {
+            $this->error($e->getMessage());
+        }
+    }
+
+    /**
      * 刷新缓存
      */
     public function refresh()
@@ -314,18 +361,22 @@ class Addon extends Backend
         {
             if ($search && stripos($v['name'], $search) === FALSE && stripos($v['intro'], $search) === FALSE)
                 continue;
+
             $v['flag'] = '';
             $v['banner'] = '';
             $v['image'] = '';
             $v['donateimage'] = '';
             $v['demourl'] = '';
             $v['price'] = '0.00';
-            $v['url'] = '/addons/' . $v['name'];
-            $v['createtime'] = 0;
+            $v['url'] = addon_url($v['name']);
+            $v['createtime'] = filemtime(ADDON_PATH . $v['name']);
             $list[] = $v;
         }
         $total = count($list);
-        $list = array_slice($list, $offset, $limit);
+        if ($limit)
+        {
+            $list = array_slice($list, $offset, $limit);
+        }
         $result = array("total" => $total, "rows" => $list);
 
         $callback = $this->request->get('callback') ? "jsonp" : "json";

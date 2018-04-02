@@ -104,7 +104,7 @@
 
     var createFormCommon = function (pColumns, that) {
         var htmlForm = [];
-        var opList = ['=', '>', '>=', '<', '<=', '!=', 'LIKE', 'LIKE %...%', 'NOT LIKE', 'IN', 'NOT IN', 'IN(...)', 'NOT IN(...)', 'BETWEEN', 'NOT BETWEEN', 'RANGE', 'NOT RANGE', 'IS NULL', 'IS NOT NULL'];
+        var opList = ['=', '>', '>=', '<', '<=', '!=', 'FIND_IN_SET', 'LIKE', 'LIKE %...%', 'NOT LIKE', 'IN', 'NOT IN', 'IN(...)', 'NOT IN(...)', 'BETWEEN', 'NOT BETWEEN', 'RANGE', 'NOT RANGE', 'IS NULL', 'IS NOT NULL'];
         htmlForm.push(sprintf('<form class="form-horizontal form-commonsearch" action="%s" >', that.options.actionForm));
         htmlForm.push('<fieldset>');
         if (that.options.titleForm.length > 0)
@@ -261,8 +261,9 @@
     var getQueryParams = function (params, searchQuery, removeempty) {
         params.filter = typeof params.filter === 'Object' ? params.filter : (params.filter ? JSON.parse(params.filter) : {});
         params.op = typeof params.op === 'Object' ? params.op : (params.op ? JSON.parse(params.op) : {});
-        params.filter = $.extend(params.filter, searchQuery.filter);
-        params.op = $.extend(params.op, searchQuery.op);
+
+        params.filter = $.extend({}, params.filter, searchQuery.filter);
+        params.op = $.extend({}, params.op, searchQuery.op);
         //移除empty的值
         if (removeempty) {
             $.each(params.filter, function (i, j) {
@@ -344,12 +345,16 @@
 
         var that = this,
                 html = [];
-        html.push(sprintf('<div class="columns-%s pull-%s" style="margin-top:10px;">', this.options.buttonsAlign, this.options.buttonsAlign));
+        html.push(sprintf('<div class="columns-%s pull-%s" style="margin-top:10px;margin-bottom:10px;">', this.options.buttonsAlign, this.options.buttonsAlign));
         html.push(sprintf('<button class="btn btn-default%s' + '" type="button" name="commonSearch" title="%s">', that.options.iconSize === undefined ? '' : ' btn-' + that.options.iconSize, that.options.formatCommonSearch()));
         html.push(sprintf('<i class="%s %s"></i>', that.options.iconsPrefix, that.options.icons.commonSearchIcon))
         html.push('</button></div>');
 
-        that.$toolbar.prepend(html.join(''));
+        if (that.$toolbar.find(".pull-right").size() > 0) {
+            $(html.join('')).insertBefore(that.$toolbar.find(".pull-right:first"));
+        } else {
+            that.$toolbar.append(html.join(''));
+        }
 
         initCommonSearch(that.columns, that);
 
@@ -366,12 +371,10 @@
                 $("form", that.$commonsearch).trigger("submit");
             }
         });
-        var searchQuery = getSearchQuery(that, true);
         var queryParams = that.options.queryParams;
         //匹配默认搜索值
         this.options.queryParams = function (params) {
-            var params = getQueryParams(queryParams(params), searchQuery);
-            return params;
+            return queryParams(getQueryParams(params, getSearchQuery(this, true)));
         };
         this.trigger('post-common-search', that);
 
@@ -379,13 +382,9 @@
 
     BootstrapTable.prototype.onCommonSearch = function () {
         var searchQuery = getSearchQuery(this);
-        var params = getQueryParams(this.options.queryParams({}), searchQuery, true);
-        this.trigger('common-search', this, params, searchQuery);
+        this.trigger('common-search', this, searchQuery);
         this.options.pageNumber = 1;
-        this.options.queryParams = function (options) {
-            return $.extend({}, options, params);
-        };
-        this.refresh({query: params});
+        this.refresh({});
     };
 
     BootstrapTable.prototype.load = function (data) {

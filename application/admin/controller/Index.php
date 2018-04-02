@@ -29,13 +29,21 @@ class Index extends Backend
      */
     public function index()
     {
-        //
+        //左侧菜单
         $menulist = $this->auth->getSidebar([
             'dashboard' => 'hot',
             'addon'     => ['new', 'red', 'badge'],
-            'auth/rule' => 'side',
+            'auth/rule' => __('Menu'),
             'general'   => ['new', 'purple'],
                 ], $this->view->site['fixedpage']);
+        $action = $this->request->request('action');
+        if ($this->request->isPost())
+        {
+            if ($action == 'refreshmenu')
+            {
+                $this->success('', null, ['menulist' => $menulist]);
+            }
+        }
         $this->view->assign('menulist', $menulist);
         $this->view->assign('title', __('Home'));
         return $this->view->fetch();
@@ -49,7 +57,7 @@ class Index extends Backend
         $url = $this->request->get('url', 'index/index');
         if ($this->auth->isLogin())
         {
-            $this->error(__("You've logged in, do not login again"), $url);
+            $this->success(__("You've logged in, do not login again"), $url);
         }
         if ($this->request->isPost())
         {
@@ -86,7 +94,9 @@ class Index extends Backend
             }
             else
             {
-                $this->error(__('Username or password is incorrect'), $url, ['token' => $this->request->token()]);
+                $msg = $this->auth->getError();
+                $msg = $msg ? $msg : __('Username or password is incorrect');
+                $this->error($msg, $url, ['token' => $this->request->token()]);
             }
         }
 
@@ -95,8 +105,10 @@ class Index extends Backend
         {
             $this->redirect($url);
         }
-        $background = cdnurl(Config::get('fastadmin.login_background'));
+        $background = Config::get('fastadmin.login_background');
+        $background = stripos($background, 'http')===0 ? $background : config('site.cdnurl') . $background;
         $this->view->assign('background', $background);
+        $this->view->assign('title', __('Login'));
         Hook::listen("login_init", $this->request);
         return $this->view->fetch();
     }

@@ -3,7 +3,7 @@
 namespace app\common\library;
 
 use app\admin\model\AuthRule;
-use blue\Tree;
+use fast\Tree;
 use think\Exception;
 use think\exception\PDOException;
 
@@ -59,20 +59,86 @@ class Menu
      */
     public static function delete($name)
     {
+        $ids = self::getAuthRuleIdsByName($name);
+        if (!$ids)
+        {
+            return false;
+        }
+        AuthRule::destroy($ids);
+        return true;
+    }
+
+    /**
+     * 启用菜单
+     * @param string $name
+     * @return boolean
+     */
+    public static function enable($name)
+    {
+        $ids = self::getAuthRuleIdsByName($name);
+        if (!$ids)
+        {
+            return false;
+        }
+        AuthRule::where('id', 'in', $ids)->update(['status' => 'normal']);
+        return true;
+    }
+
+    /**
+     * 禁用菜单
+     * @param string $name
+     * @return boolean
+     */
+    public static function disable($name)
+    {
+        $ids = self::getAuthRuleIdsByName($name);
+        if (!$ids)
+        {
+            return false;
+        }
+        AuthRule::where('id', 'in', $ids)->update(['status' => 'hidden']);
+        return true;
+    }
+
+    /**
+     * 导出指定名称的菜单规则
+     * @param string $name
+     * @return array
+     */
+    public static function export($name)
+    {
+        $ids = self::getAuthRuleIdsByName($name);
+        if (!$ids)
+        {
+            return [];
+        }
+        $menuList = [];
+        $menu = AuthRule::getByName($name);
+        if ($menu)
+        {
+            $ruleList = collection(AuthRule::where('id', 'in', $ids)->select())->toArray();
+            $menuList = Tree::instance()->init($ruleList)->getTreeArray($menu['id']);
+        }
+        return $menuList;
+    }
+
+    /**
+     * 根据名称获取规则IDS
+     * @param string $name
+     * @return array
+     */
+    public static function getAuthRuleIdsByName($name)
+    {
+        $ids = [];
         $menu = AuthRule::getByName($name);
         if ($menu)
         {
             // 必须将结果集转换为数组
-            $ruleList = collection(model('AuthRule')->order('weigh', 'desc')->field('id,pid,name')->select())->toArray();
+            $ruleList = collection(AuthRule::order('weigh', 'desc')->field('id,pid,name')->select())->toArray();
             // 构造菜单数据
             $ids = Tree::instance()->init($ruleList)->getChildrenIds($menu['id'], true);
-            if ($ids)
-            {
-                AuthRule::destroy($ids);
-            }
-            return true;
         }
-        return false;
+        return $ids;
     }
 
 }

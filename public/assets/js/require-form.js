@@ -1,6 +1,7 @@
 define(['jquery', 'bootstrap', 'upload', 'validator'], function ($, undefined, Upload, Validator) {
     var Form = {
         config: {
+            fieldlisttpl: '<dd class="form-inline"><input type="text" name="<%=name%>[<%=index%>][key]" class="form-control" value="<%=row.key%>" size="10" /> <input type="text" name="<%=name%>[<%=index%>][value]" class="form-control" value="<%=row.value%>" size="40" /> <span class="btn btn-sm btn-danger btn-remove"><i class="fa fa-times"></i></span> <span class="btn btn-sm btn-primary btn-dragsort"><i class="fa fa-arrows"></i></span></dd>'
         },
         events: {
             validator: function (form, success, error, submit) {
@@ -17,9 +18,16 @@ define(['jquery', 'bootstrap', 'upload', 'validator'], function ($, undefined, U
                     display: function (elem) {
                         return $(elem).closest('.form-group').find(".control-label").text().replace(/\:/, '');
                     },
+                    dataFilter: function (data) {
+                        if (data.code === 1) {
+                            return "";
+                        } else {
+                            return data.msg;
+                        }
+                    },
                     target: function (input) {
                         var $formitem = $(input).closest('.form-group'),
-                                $msgbox = $formitem.find('span.msg-box');
+                            $msgbox = $formitem.find('span.msg-box');
                         if (!$msgbox.length) {
                             return [];
                         }
@@ -33,6 +41,9 @@ define(['jquery', 'bootstrap', 'upload', 'validator'], function ($, undefined, U
                         Form.api.submit($(ret), function (data, ret) {
                             that.holdSubmit(false);
                             submitBtn.removeClass("disabled");
+                            if (false === $(this).triggerHandler("success.form", [data, ret])) {
+                                return false;
+                            }
                             if (typeof success === 'function') {
                                 if (false === success.call($(this), data, ret)) {
                                     return false;
@@ -47,6 +58,9 @@ define(['jquery', 'bootstrap', 'upload', 'validator'], function ($, undefined, U
                             return false;
                         }, function (data, ret) {
                             that.holdSubmit(false);
+                            if (false === $(this).triggerHandler("error.form", [data, ret])) {
+                                return false;
+                            }
                             submitBtn.removeClass("disabled");
                             if (typeof error === 'function') {
                                 if (false === error.call($(this), data, ret)) {
@@ -74,12 +88,24 @@ define(['jquery', 'bootstrap', 'upload', 'validator'], function ($, undefined, U
                 if ($(".selectpage", form).size() > 0) {
                     require(['selectpage'], function () {
                         $('.selectpage', form).selectPage({
-                            source: 'ajax/selectpage',
+                            eAjaxSuccess: function (data) {
+                                data.list = typeof data.rows !== 'undefined' ? data.rows : (typeof data.list !== 'undefined' ? data.list : []);
+                                data.totalRow = typeof data.total !== 'undefined' ? data.total : (typeof data.totalRow !== 'undefined' ? data.totalRow : data.list.length);
+                                return data;
+                            }
                         });
                     });
                     //给隐藏的元素添加上validate验证触发事件
-                    $(form).on("change", ".selectpage-input-hidden", function () {
+                    $(document).on("change", ".sp_hidden", function () {
                         $(this).trigger("validate");
+                    });
+                    $(document).on("change", ".sp_input", function () {
+                        $(this).closest(".sp_container").find(".sp_hidden").trigger("change");
+                    });
+                    $(form).on("reset", function () {
+                        setTimeout(function () {
+                            $('.selectpage', form).selectPageClear();
+                        }, 1);
                     });
                 }
             },
@@ -97,7 +123,8 @@ define(['jquery', 'bootstrap', 'upload', 'validator'], function ($, undefined, U
             citypicker: function (form) {
                 //绑定城市远程插件
                 if ($("[data-toggle='city-picker']", form).size() > 0) {
-                    require(['citypicker'], function () {});
+                    require(['citypicker'], function () {
+                    });
                 }
             },
             datetimepicker: function (form) {
@@ -122,6 +149,48 @@ define(['jquery', 'bootstrap', 'upload', 'validator'], function ($, undefined, U
                         };
                         $('.datetimepicker', form).parent().css('position', 'relative');
                         $('.datetimepicker', form).datetimepicker(options);
+                    });
+                }
+            },
+            daterangepicker: function (form) {
+                //绑定日期时间元素事件
+                if ($(".datetimerange", form).size() > 0) {
+                    require(['bootstrap-daterangepicker'], function () {
+                        var ranges = {};
+                        ranges[__('Today')] = [Moment().startOf('day'), Moment().endOf('day')];
+                        ranges[__('Yesterday')] = [Moment().subtract(1, 'days').startOf('day'), Moment().subtract(1, 'days').endOf('day')];
+                        ranges[__('Last 7 Days')] = [Moment().subtract(6, 'days').startOf('day'), Moment().endOf('day')];
+                        ranges[__('Last 30 Days')] = [Moment().subtract(29, 'days').startOf('day'), Moment().endOf('day')];
+                        ranges[__('This Month')] = [Moment().startOf('month'), Moment().endOf('month')];
+                        ranges[__('Last Month')] = [Moment().subtract(1, 'month').startOf('month'), Moment().subtract(1, 'month').endOf('month')];
+                        var options = {
+                            timePicker: false,
+                            autoUpdateInput: false,
+                            timePickerSeconds: true,
+                            timePicker24Hour: true,
+                            autoApply: true,
+                            locale: {
+                                format: 'YYYY-MM-DD HH:mm:ss',
+                                customRangeLabel: __("Custom Range"),
+                                applyLabel: __("Apply"),
+                                cancelLabel: __("Clear"),
+                            },
+                            ranges: ranges,
+                        };
+                        var origincallback = function (start, end) {
+                            $(this.element).val(start.format(options.locale.format) + " - " + end.format(options.locale.format));
+                            $(this.element).trigger('blur');
+                        };
+                        $(".datetimerange", form).each(function () {
+                            var callback = typeof $(this).data('callback') == 'function' ? $(this).data('callback') : origincallback;
+                            $(this).on('apply.daterangepicker', function (ev, picker) {
+                                callback.call(picker, picker.startDate, picker.endDate);
+                            });
+                            $(this).on('cancel.daterangepicker', function (ev, picker) {
+                                $(this).val('').trigger('blur');
+                            });
+                            $(this).daterangepicker($.extend({}, options, $(this).data()), callback);
+                        });
                     });
                 }
             },
@@ -173,26 +242,89 @@ define(['jquery', 'bootstrap', 'upload', 'validator'], function ($, undefined, U
                 }
             },
             fieldlist: function (form) {
+                //绑定fieldlist
                 if ($(".fieldlist", form).size() > 0) {
-                    $(".fieldlist", form).on("click", ".append", function () {
-                        var rel = parseInt($(this).closest("dl").attr("rel")) + 1;
-                        var name = $(this).closest("dl").data("name");
-                        $(this).closest("dl").attr("rel", rel);
-                        $('<dd class="form-inline"><input type="text" name="' + name + '[field][' + rel + ']" class="form-control" value="" size="10" /> <input type="text" name="' + name + '[value][' + rel + ']" class="form-control" value="" size="40" /> <span class="btn btn-sm btn-danger btn-remove"><i class="fa fa-times"></i></span> <span class="btn btn-sm btn-primary btn-dragsort"><i class="fa fa-arrows"></i></span></dd>').insertBefore($(this).parent());
-                    });
-                    $(".fieldlist", form).on("click", "dd .btn-remove", function () {
-                        $(this).parent().remove();
-                    });
-                    //拖拽排序
-                    require(['dragsort'], function () {
-                        //绑定拖动排序
+                    require(['dragsort', 'template'], function (undefined, Template) {
+                        //刷新隐藏textarea的值
+                        var refresh = function (name) {
+                            var data = {};
+                            var textarea = $("textarea[name='" + name + "']", form);
+                            var container = textarea.closest("dl");
+                            var template = container.data("template");
+                            console.log(name, container);
+                            $.each($("input,select", container).serializeArray(), function (i, j) {
+                                var reg = /\[(\w+)\]\[(\w+)\]$/g;
+                                var match = reg.exec(j.name);
+                                if (!match)
+                                    return true;
+                                match[1] = "x" + parseInt(match[1]);
+                                if (typeof data[match[1]] == 'undefined') {
+                                    data[match[1]] = {};
+                                }
+                                data[match[1]][match[2]] = j.value;
+                            });
+                            var result = template ? [] : {};
+                            $.each(data, function (i, j) {
+                                if (j) {
+                                    if (!template) {
+                                        if (j.key != '') {
+                                            result[j.key] = j.value;
+                                        }
+                                    } else {
+                                        result.push(j);
+                                    }
+                                }
+                            });
+                            textarea.val(JSON.stringify(result));
+                        };
+                        //监听文本框改变事件
+                        $(document).on('change keyup', ".fieldlist input,.fieldlist textarea,.fieldlist select", function () {
+                            refresh($(this).closest("dl").data("name"));
+                        });
+                        //追加控制
+                        $(".fieldlist", form).on("click", ".btn-append", function (e, row) {
+                            var container = $(this).closest("dl");
+                            var index = container.data("index");
+                            var name = container.data("name");
+                            var template = container.data("template");
+                            var data = container.data();
+                            index = index ? parseInt(index) : 0;
+                            container.data("index", index + 1);
+                            var row = row ? row : {};
+                            var vars = {index: index, name: name, data: data, row: row};
+                            var html = template ? Template(template, vars) : Template.render(Form.config.fieldlisttpl, vars);
+                            $(html).insertBefore($(this).closest("dd"));
+                            $(this).trigger("fa.event.appendfieldlist", $(this).closest("dd").prev());
+                        });
+                        //移除控制
+                        $(".fieldlist", form).on("click", "dd .btn-remove", function () {
+                            var container = $(this).closest("dl");
+                            $(this).closest("dd").remove();
+                            refresh(container.data("name"));
+                        });
+                        //拖拽排序
                         $("dl.fieldlist", form).dragsort({
                             itemSelector: 'dd',
-                            dragSelector: ".btn-dragsort",
+                            dragSelector: ".btn-fdragsort",
                             dragEnd: function () {
-
+                                refresh($(this).closest("dl").data("name"));
                             },
                             placeHolderTemplate: "<dd></dd>"
+                        });
+                        //渲染数据
+                        $(".fieldlist", form).each(function () {
+                            var container = this;
+                            var textarea = $("textarea[name='" + $(this).data("name") + "']", form);
+                            if (textarea.val() == '') {
+                                return true;
+                            }
+                            var template = $(this).data("template");
+                            $.each(JSON.parse(textarea.val()), function (i, j) {
+                                $(".btn-append", container).trigger('click', template ? j : {
+                                    key: i,
+                                    value: j
+                                });
+                            });
                         });
                     });
                 }
@@ -279,6 +411,8 @@ define(['jquery', 'bootstrap', 'upload', 'validator'], function ($, undefined, U
                 events.validator(form, success, error, submit);
 
                 events.selectpicker(form);
+
+                events.daterangepicker(form);
 
                 events.selectpage(form);
 

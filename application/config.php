@@ -18,7 +18,7 @@ return [
     // 应用命名空间
     'app_namespace'          => 'app',
     // 应用调试模式
-    'app_debug'              => Env::get('app.debug', true),
+    'app_debug'              => Env::get('app.debug', false),
     // 应用Trace
     'app_trace'              => Env::get('app.trace', false),
     // 应用模式状态
@@ -228,30 +228,48 @@ return [
         // 验证码字符集合
         'codeSet'  => '2345678abcdefhijkmnpqrstuvwxyzABCDEFGHJKLMNPQRTUVWXY',
         // 验证码字体大小(px)
-        'fontSize' => 16,
+        'fontSize' => 18,
         // 是否画混淆曲线
         'useCurve' => false,
         //使用中文验证码
         'useZh'    => false,
         // 验证码图片高度
-        'imageH'   => 30,
+        'imageH'   => 40,
         // 验证码图片宽度
-        'imageW'   => 100,
+        'imageW'   => 130,
         // 验证码位数
         'length'   => 4,
         // 验证成功后是否重置
         'reset'    => true
     ],
+    // +----------------------------------------------------------------------
+    // | Token设置
+    // +----------------------------------------------------------------------
+    'token'                  => [
+        // 驱动方式
+        'type'     => 'Redis',
+        // 缓存前缀
+        'key'      => 'i3d6o32wo8fvs1fvdpwens',
+        // 加密方式
+        'hashalgo' => 'ripemd160',
+        // 缓存有效期 0表示永久缓存
+        'expire'   => 0,
+    ],
     //FastAdmin配置
     'fastadmin'              => [
+        //是否开启前台会员中心
+        'usercenter'       => true,
         //登录验证码
         'login_captcha'    => false,
         //是否同一账号同一时间只能在一个地方登录
         'login_unique'     => false,
         //登录页默认背景图
         'login_background' => "/assets/img/loginbg.jpg",
+        //自动检测更新
+        'checkupdate'      => false,
         //版本号
-        'version'          => '1.0.0.20180117_beta',
-        'api_url'          => 'http://api.fastadmin.net',
+        'version'          => '1.0.0.20180401_beta',
+        //API接口地址
+        'api_url'          => 'https://api.fastadmin.net',
     ],
 ];

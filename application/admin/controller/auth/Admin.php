@@ -5,8 +5,8 @@ namespace app\admin\controller\auth;
 use app\admin\model\AuthGroup;
 use app\admin\model\AuthGroupAccess;
 use app\common\controller\Backend;
-use blue\Random;
-use blue\Tree;
+use fast\Random;
+use fast\Tree;
 
 /**
  * 管理员管理
@@ -27,30 +27,38 @@ class Admin extends Backend
         $this->model = model('Admin');
 
         $this->childrenAdminIds = $this->auth->getChildrenAdminIds(true);
-        $this->childrenGroupIds = $this->auth->getChildrenGroupIds($this->auth->isSuperAdmin() ? true : false);
+        $this->childrenGroupIds = $this->auth->getChildrenGroupIds(true);
 
         $groupList = collection(AuthGroup::where('id', 'in', $this->childrenGroupIds)->select())->toArray();
+
         Tree::instance()->init($groupList);
-        $result = [];
+        $groupdata = [];
         if ($this->auth->isSuperAdmin())
         {
             $result = Tree::instance()->getTreeList(Tree::instance()->getTreeArray(0));
+            foreach ($result as $k => $v)
+            {
+                $groupdata[$v['id']] = $v['name'];
+            }
         }
         else
         {
+            $result = [];
             $groups = $this->auth->getGroups();
             foreach ($groups as $m => $n)
             {
-                $result = array_merge($result, Tree::instance()->getTreeList(Tree::instance()->getTreeArray($n['pid'])));
+                $childlist = Tree::instance()->getTreeList(Tree::instance()->getTreeArray($n['id']));
+                $temp = [];
+                foreach ($childlist as $k => $v)
+                {
+                    $temp[$v['id']] = $v['name'];
+                }
+                $result[__($n['name'])] = $temp;
             }
-        }
-        $groupName = [];
-        foreach ($result as $k => $v)
-        {
-            $groupName[$v['id']] = $v['name'];
+            $groupdata = $result;
         }
 
-        $this->view->assign('groupdata', $groupName);
+        $this->view->assign('groupdata', $groupdata);
         $this->assignconfig("admin", ['id' => $this->auth->id]);
     }
 
@@ -61,6 +69,11 @@ class Admin extends Backend
     {
         if ($this->request->isAjax())
         {
+            //如果发送的来源是Selectpage，则转发到Selectpage
+            if ($this->request->request('keyField'))
+            {
+                return $this->selectpage();
+            }
             $childrenGroupIds = $this->childrenGroupIds;
             $groupName = AuthGroup::where('id', 'in', $childrenGroupIds)
                     ->column('id,name');
@@ -244,6 +257,16 @@ class Admin extends Backend
     {
         // 管理员禁止批量操作
         $this->error();
+    }
+
+    /**
+     * 下拉搜索
+     */
+    protected function selectpage()
+    {
+        $this->dataLimit = 'auth';
+        $this->dataLimitField = 'id';
+        return parent::selectpage();
     }
 
 }

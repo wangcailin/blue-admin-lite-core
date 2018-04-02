@@ -79,6 +79,42 @@ define(['jquery', 'bootstrap', 'backend', 'addtabs', 'adminlte', 'form'], functi
                 }
             });
 
+            //读取首次登录推荐插件列表
+            if (localStorage.getItem("fastep") == "installed") {
+                $.ajax({
+                    url: Config.fastadmin.api_url + '/addon/recommend',
+                    type: 'post',
+                    dataType: 'jsonp',
+                    success: function (ret) {
+                        require(['template'], function (Template) {
+                            var install = function (name, title) {
+                                Fast.api.ajax({
+                                    url: 'addon/install',
+                                    data: {name: name, faversion: Config.fastadmin.version}
+                                }, function (data, ret) {
+                                    Fast.api.refreshmenu();
+                                });
+                            };
+                            $(document).on('click', '.btn-install', function () {
+                                $(this).prop("disabled", true).addClass("disabled");
+                                $("input[name=addon]:checked").each(function () {
+                                    install($(this).data("name"));
+                                });
+                                return false;
+                            });
+                            $(document).on('click', '.btn-notnow', function () {
+                                Layer.closeAll();
+                            });
+                            Layer.open({
+                                type: 1, skin: 'layui-layer-page', area: ["860px", "620px"], title: '',
+                                content: Template.render(ret.tpl, {addonlist: ret.rows})
+                            });
+                            localStorage.setItem("fastep", "dashboard");
+                        });
+                    }
+                });
+            }
+
             //版本检测
             var checkupdate = function (ignoreversion, tips) {
                 $.ajax({
@@ -90,7 +126,7 @@ define(['jquery', 'bootstrap', 'backend', 'addtabs', 'adminlte', 'form'], functi
                         if (ret.data && ignoreversion !== ret.data.newversion) {
                             Layer.open({
                                 title: '发现新版本',
-                                area: ["500px", "auto"],
+                                maxHeight: 400,
                                 content: '<h5 style="background-color:#f7f7f7; font-size:14px; padding: 10px;">你的版本是:' + ret.data.version + '，新版本:' + ret.data.newversion + '</h5><span class="label label-danger">更新说明</span><br/>' + ret.data.upgradetext,
                                 btn: ['去下载更新', '忽略此次更新', '不再提示'],
                                 btn2: function (index, layero) {
@@ -118,7 +154,7 @@ define(['jquery', 'bootstrap', 'backend', 'addtabs', 'adminlte', 'form'], functi
 
             //读取版本检测信息
             var ignoreversion = localStorage.getItem("ignoreversion");
-            if (ignoreversion !== "*") {
+            if (Config.fastadmin.checkupdate && ignoreversion !== "*") {
                 checkupdate(ignoreversion, false);
             }
             //手动检测版本信息
@@ -178,6 +214,24 @@ define(['jquery', 'bootstrap', 'backend', 'addtabs', 'adminlte', 'form'], functi
                 }
             });
 
+            //刷新菜单事件
+            $(document).on('refresh', '.sidebar-menu', function () {
+                Fast.api.ajax({
+                    url: 'index/index',
+                    data: {action: 'refreshmenu'}
+                }, function (data) {
+                    $(".sidebar-menu li:not([data-rel='external'])").remove();
+                    $(".sidebar-menu").prepend(data.menulist);
+                    $("#nav ul li[role='presentation'].active a").trigger('click');
+                    return false;
+                }, function () {
+                    return false;
+                });
+            });
+
+            //这一行需要放在点击左侧链接事件之前
+            var addtabs = Config.referer ? localStorage.getItem("addtabs") : null;
+
             //绑定tabs事件,如果需要点击强制刷新iframe,则请将iframeForceRefresh置为true
             $('#nav').addtabs({iframeHeight: "100%", iframeForceRefresh: false});
             if ($("ul.sidebar-menu li.active a").size() > 0) {
@@ -185,8 +239,8 @@ define(['jquery', 'bootstrap', 'backend', 'addtabs', 'adminlte', 'form'], functi
             } else {
                 $("ul.sidebar-menu li a[url!='javascript:;']:first").trigger("click");
             }
+
             //如果是刷新操作则直接返回刷新前的页面
-            var addtabs = Config.referer ? localStorage.getItem("addtabs") : null;
             if (Config.referer) {
                 if (Config.referer === $(addtabs).attr("url")) {
                     var active = $("ul.sidebar-menu li a[addtabs=" + $(addtabs).attr("addtabs") + "]");
@@ -201,11 +255,6 @@ define(['jquery', 'bootstrap', 'backend', 'addtabs', 'adminlte', 'form'], functi
                 }
             }
 
-            /**
-             * List of all the available skins
-             *
-             * @type Array
-             */
             var my_skins = [
                 "skin-blue",
                 "skin-white",
@@ -222,19 +271,13 @@ define(['jquery', 'bootstrap', 'backend', 'addtabs', 'adminlte', 'form'], functi
             ];
             setup();
 
-            /**
-             * Toggles layout classes
-             *
-             * @param String cls the layout class to toggle
-             * @returns void
-             */
             function change_layout(cls) {
                 $("body").toggleClass(cls);
                 AdminLTE.layout.fixSidebar();
                 //Fix the problem with right sidebar and layout boxed
                 if (cls == "layout-boxed")
                     AdminLTE.controlSidebar._fix($(".control-sidebar-bg"));
-                if ($('body').hasClass('fixed') && cls == 'fixed' && false) {
+                if ($('body').hasClass('fixed') && cls == 'fixed') {
                     AdminLTE.pushMenu.expandOnHover();
                     AdminLTE.layout.activate();
                 }
@@ -242,61 +285,18 @@ define(['jquery', 'bootstrap', 'backend', 'addtabs', 'adminlte', 'form'], functi
                 AdminLTE.controlSidebar._fix($(".control-sidebar"));
             }
 
-            /**
-             * Replaces the old skin with the new skin
-             * @param String cls the new skin class
-             * @returns Boolean false to prevent link's default action
-             */
             function change_skin(cls) {
                 if (!$("body").hasClass(cls)) {
-                    $.each(my_skins, function (i) {
-                        $("body").removeClass(my_skins[i]);
-                    });
-
-                    $("body").addClass(cls);
-                    store('skin', cls);
+                    $("body").removeClass(my_skins.join(' ')).addClass(cls);
+                    localStorage.setItem('skin', cls);
                     var cssfile = Config.site.cdnurl + "/assets/css/skins/" + cls + ".css";
                     $('head').append('<link rel="stylesheet" href="' + cssfile + '" type="text/css" />');
                 }
                 return false;
             }
 
-            /**
-             * Store a new settings in the browser
-             *
-             * @param String name Name of the setting
-             * @param String val Value of the setting
-             * @returns void
-             */
-            function store(name, val) {
-                if (typeof (Storage) !== "undefined") {
-                    localStorage.setItem(name, val);
-                } else {
-                    window.alert('Please use a modern browser to properly view this template!');
-                }
-            }
-
-            /**
-             * Get a prestored setting
-             *
-             * @param String name Name of of the setting
-             * @returns String The value of the setting | null
-             */
-            function get(name) {
-                if (typeof (Storage) !== "undefined") {
-                    return localStorage.getItem(name);
-                } else {
-                    window.alert('Please use a modern browser to properly view this template!');
-                }
-            }
-
-            /**
-             * Retrieve default settings and apply them to the template
-             *
-             * @returns void
-             */
             function setup() {
-                var tmp = get('skin');
+                var tmp = localStorage.getItem('skin');
                 if (tmp && $.inArray(tmp, my_skins))
                     change_skin(tmp);
 
@@ -371,6 +371,7 @@ define(['jquery', 'bootstrap', 'backend', 'addtabs', 'adminlte', 'form'], functi
             }
 
             $(window).resize();
+
         },
         login: function () {
             var lastlogin = localStorage.getItem("lastlogin");
@@ -395,7 +396,11 @@ define(['jquery', 'bootstrap', 'backend', 'addtabs', 'adminlte', 'form'], functi
 
             //为表单绑定事件
             Form.api.bindevent($("#login-form"), function (data) {
-                localStorage.setItem("lastlogin", JSON.stringify({id: data.id, username: data.username, avatar: data.avatar}));
+                localStorage.setItem("lastlogin", JSON.stringify({
+                    id: data.id,
+                    username: data.username,
+                    avatar: data.avatar
+                }));
                 location.href = Backend.api.fixurl(data.url);
             });
         }

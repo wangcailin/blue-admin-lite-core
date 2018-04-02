@@ -58,8 +58,7 @@ class Frontend extends Controller
         $actionname = strtolower($this->request->action());
 
         // token
-        $token = $this->request->request('token');
-        $token = $token ? $token : \think\Cookie::get('token');
+        $token = $this->request->server('HTTP_TOKEN', $this->request->request('token', \think\Cookie::get('token')));
 
         $path = str_replace('.', '/', $controllername) . '/' . $actionname;
         // 设置当前请求的URI
@@ -116,6 +115,7 @@ class Frontend extends Controller
             'moduleurl'      => rtrim(url("/{$modulename}", '', false), '/'),
             'language'       => $lang
         ];
+        $config = array_merge($config, Config::get("view_replace_str"));
 
         Config::set('upload', array_merge(Config::get('upload'), $upload));
 

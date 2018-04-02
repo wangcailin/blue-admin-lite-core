@@ -4,7 +4,7 @@ namespace app\common\library;
 
 use app\common\model\User;
 use app\common\model\UserRule;
-use blue\Random;
+use fast\Random;
 use think\Config;
 use think\Db;
 use think\Hook;
@@ -19,7 +19,8 @@ class Auth
     protected $_logined = FALSE;
     protected $_user = NULL;
     protected $_token = '';
-    protected $keeptime = 0;
+    //Token默认有效时长
+    protected $keeptime = 2592000;
     protected $requestUri = '';
     protected $rules = [];
     //默认配置
@@ -127,7 +128,7 @@ class Auth
      * @param string $password  密码
      * @param string $email     邮箱
      * @param string $mobile    手机号
-     * @param string $extend    扩展参数
+     * @param array $extend    扩展参数
      * @return boolean
      */
     public function register($username, $password, $email = '', $mobile = '', $extend = [])
@@ -174,6 +175,23 @@ class Auth
         $params['password'] = $this->getEncryptPassword($password, $params['salt']);
         $params = array_merge($params, $extend);
 
+        ////////////////同步到Ucenter////////////////
+        if (defined('UC_STATUS') && UC_STATUS)
+        {
+            $uc = new \addons\ucenter\library\client\Client();
+            $user_id = $uc->uc_user_register($username, $password, $email);
+            // 如果小于0则说明发生错误
+            if ($user_id <= 0)
+            {
+                $this->setError($user_id > -4 ? 'Username is incorrect' : 'Email is incorrect');
+                return FALSE;
+            }
+            else
+            {
+                $params['id'] = $user_id;
+            }
+        }
+
         //账号注册时需要开启事务,避免出现垃圾数据
         Db::startTrans();
         try
@@ -186,7 +204,7 @@ class Auth
 
             //设置Token
             $this->_token = Random::uuid();
-            Token::set($this->_token, $user->id);
+            Token::set($this->_token, $user->id, $this->keeptime);
 
             //注册成功的事件
             Hook::listen("user_register_successed", $this->_user);
@@ -206,7 +224,7 @@ class Auth
      *
      * @param string    $account    账号,用户名、邮箱、手机号
      * @param string    $password   密码
-     * @return array
+     * @return boolean
      */
     public function login($account, $password)
     {
@@ -238,7 +256,7 @@ class Auth
     /**
      * 注销
      * 
-     * @return bool
+     * @return boolean
      */
     public function logout()
     {
@@ -299,9 +317,22 @@ class Auth
         $user = User::get($user_id);
         if ($user)
         {
+            ////////////////同步到Ucenter////////////////
+            if (defined('UC_STATUS') && UC_STATUS)
+            {
+                $uc = new \addons\ucenter\library\client\Client();
+                $re = $uc->uc_user_login($this->user->id, $this->user->password . '#split#' . $this->user->salt, 3);
+                // 如果小于0则说明发生错误
+                if ($re <= 0)
+                {
+                    $this->setError('Username or password is incorrect');
+                    return FALSE;
+                }
+            }
+
             $ip = request()->ip();
             $time = time();
-            
+
             //判断连续登录和最大连续登录
             if ($user->logintime < \fast\Date::unixtime('day'))
             {
@@ -319,7 +350,9 @@ class Auth
             $this->_user = $user;
 
             $this->_token = Random::uuid();
-            Token::set($this->_token, $user->id);
+            Token::set($this->_token, $user->id, $this->keeptime);
+
+            $this->_logined = TRUE;
 
             //登录成功的事件
             Hook::listen("user_login_successed", $this->_user);
@@ -443,6 +476,7 @@ class Auth
     /**
      * 删除一个指定会员
      * @param int $user_id 会员ID
+     * @return boolean
      */
     public function delete($user_id)
     {
@@ -450,6 +484,19 @@ class Auth
         if (!$user)
         {
             return FALSE;
+        }
+
+        ////////////////同步到Ucenter////////////////
+        if (defined('UC_STATUS') && UC_STATUS)
+        {
+            $uc = new \addons\ucenter\library\client\Client();
+            $re = $uc->uc_user_delete($user['id']);
+            // 如果小于0则说明发生错误
+            if ($re <= 0)
+            {
+                $this->setError('Account is locked');
+                return FALSE;
+            }
         }
 
         // 调用事务删除账号
@@ -482,6 +529,7 @@ class Auth
      * 检测当前控制器和方法是否匹配传递的数组
      *
      * @param array $arr 需要验证权限的数组
+     * @return boolean
      */
     public function match($arr = [])
     {
@@ -554,6 +602,7 @@ class Auth
      * 设置错误信息
      *
      * @param $error 错误信息
+     * @return Auth
      */
     public function setError($error)
     {

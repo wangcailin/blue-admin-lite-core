@@ -1,4 +1,4 @@
-define(['jquery', 'bootstrap', 'moment', 'moment/locale/zh-cn', 'bootstrap-table', 'bootstrap-table-lang', 'bootstrap-table-mobile', 'bootstrap-table-export', 'bootstrap-table-commonsearch', 'bootstrap-table-template'], function ($, undefined, Moment) {
+define(['jquery', 'bootstrap', 'moment', 'moment/locale/zh-cn', 'bootstrap-table', 'bootstrap-table-lang', 'bootstrap-table-export', 'bootstrap-table-commonsearch', 'bootstrap-table-template'], function ($, undefined, Moment) {
     var Table = {
         list: {},
         // Bootstrap-table 基础配置
@@ -32,7 +32,6 @@ define(['jquery', 'bootstrap', 'moment', 'moment/locale/zh-cn', 'bootstrap-table
             paginationPreText: __("Previous"),
             paginationNextText: __("Next"),
             paginationLastText: __("Last"),
-            mobileResponsive: true, //是否自适应移动端
             cardView: false, //卡片视图
             checkOnInit: true, //是否在初始化时判断
             escape: true, //是否对内容进行转义
@@ -69,6 +68,10 @@ define(['jquery', 'bootstrap', 'moment', 'moment/locale/zh-cn', 'bootstrap-table
                 defaults = defaults ? defaults : {};
                 columnDefaults = columnDefaults ? columnDefaults : {};
                 locales = locales ? locales : {};
+                // 如果是iOS设备则启用卡片视图
+                if (navigator.userAgent.match(/(iPod|iPhone|iPad)/)) {
+                    Table.defaults.cardView = true;
+                }
                 // 写入bootstrap-table默认配置
                 $.extend(true, $.fn.bootstrapTable.defaults, Table.defaults, defaults);
                 // 写入bootstrap-table column配置
@@ -101,7 +104,10 @@ define(['jquery', 'bootstrap', 'moment', 'moment/locale/zh-cn', 'bootstrap-table
                 //Bootstrap操作区
                 var toolbar = $(options.toolbar, parenttable);
                 //当刷新表格时
-                table.on('load-error.bs.table', function (status, res) {
+                table.on('load-error.bs.table', function (status, res, e) {
+                    if (e.status === 0) {
+                        return;
+                    }
                     Toastr.error(__('Unknown data format'));
                 });
                 //当刷新表格时
@@ -145,7 +151,7 @@ define(['jquery', 'bootstrap', 'moment', 'moment/locale/zh-cn', 'bootstrap-table
                     }
                 });
                 // 处理选中筛选框后按钮的状态统一变更
-                table.on('check.bs.table uncheck.bs.table check-all.bs.table uncheck-all.bs.table fa.event.check', function () {
+                table.on('check.bs.table uncheck.bs.table check-all.bs.table uncheck-all.bs.table', function () {
                     var ids = Table.api.selectedids(table);
                     $(Table.config.disabledbtn, toolbar).toggleClass('disabled', !ids.length);
                 });
@@ -157,7 +163,9 @@ define(['jquery', 'bootstrap', 'moment', 'moment/locale/zh-cn', 'bootstrap-table
                 $(toolbar).on('click', Table.config.addbtn, function () {
                     var ids = Table.api.selectedids(table);
                     var url = options.extend.add_url;
-                    url = Table.api.replaceurl(url, {ids: ids.length > 0 ? ids.join(",") : 0}, table);
+                    if (url.indexOf("{ids}") !== -1) {
+                        url = Table.api.replaceurl(url, {ids: ids.length > 0 ? ids.join(",") : 0}, table);
+                    }
                     Fast.api.open(url, __('Add'), $(this).data() || {});
                 });
                 // 导入按钮事件
@@ -167,7 +175,7 @@ define(['jquery', 'bootstrap', 'moment', 'moment/locale/zh-cn', 'bootstrap-table
                             Fast.api.ajax({
                                 url: options.extend.import_url,
                                 data: {file: data.url},
-                            }, function () {
+                            }, function (data, ret) {
                                 table.bootstrapTable('refresh');
                             });
                         });
@@ -194,21 +202,22 @@ define(['jquery', 'bootstrap', 'moment', 'moment/locale/zh-cn', 'bootstrap-table
                     var that = this;
                     var ids = Table.api.selectedids(table);
                     Layer.confirm(
-                            __('Are you sure you want to delete the %s selected item?', ids.length),
-                            {icon: 3, title: __('Warning'), offset: 0, shadeClose: true},
-                            function (index) {
-                                Table.api.multi("del", ids, table, that);
-                                Layer.close(index);
-                            }
+                        __('Are you sure you want to delete the %s selected item?', ids.length),
+                        {icon: 3, title: __('Warning'), offset: 0, shadeClose: true},
+                        function (index) {
+                            Table.api.multi("del", ids, table, that);
+                            Layer.close(index);
+                        }
                     );
                 });
                 // 拖拽排序
                 require(['dragsort'], function () {
                     //绑定拖动排序
                     $("tbody", table).dragsort({
-                        itemSelector: 'tr',
+                        itemSelector: 'tr:visible',
                         dragSelector: "a.btn-dragsort",
-                        dragEnd: function () {
+                        dragEnd: function (a, b) {
+                            var element = $("a.btn-dragsort", this);
                             var data = table.bootstrapTable('getData');
                             var current = data[parseInt($(this).data("index"))];
                             var options = table.bootstrapTable('getOptions');
@@ -229,7 +238,21 @@ define(['jquery', 'bootstrap', 'moment', 'moment/locale/zh-cn', 'bootstrap-table
                                     table: options.extend.table
                                 }
                             };
-                            Fast.api.ajax(params, function (data) {
+                            Fast.api.ajax(params, function (data, ret) {
+                                var success = $(element).data("success") || $.noop;
+                                if (typeof success === 'function') {
+                                    if (false === success.call(element, data, ret)) {
+                                        return false;
+                                    }
+                                }
+                                table.bootstrapTable('refresh');
+                            }, function () {
+                                var error = $(element).data("error") || $.noop;
+                                if (typeof error === 'function') {
+                                    if (false === error.call(element, data, ret)) {
+                                        return false;
+                                    }
+                                }
                                 table.bootstrapTable('refresh');
                             });
                         },
@@ -237,7 +260,9 @@ define(['jquery', 'bootstrap', 'moment', 'moment/locale/zh-cn', 'bootstrap-table
                     });
                 });
                 $(table).on("click", "input[data-id][name='checkbox']", function (e) {
-                    table.trigger('fa.event.check');
+                    var ids = $(this).data("id");
+                    var row = Table.api.getrowbyid(ids);
+                    table.trigger('check.bs.table', [row, this]);
                 });
                 $(table).on("click", "[data-id].btn-change", function (e) {
                     e.preventDefault();
@@ -246,14 +271,7 @@ define(['jquery', 'bootstrap', 'moment', 'moment/locale/zh-cn', 'bootstrap-table
                 $(table).on("click", "[data-id].btn-edit", function (e) {
                     e.preventDefault();
                     var ids = $(this).data("id");
-                    var row = {};
-                    var options = table.bootstrapTable("getOptions");
-                    $.each(table.bootstrapTable('getData'), function (i, j) {
-                        if (j[options.pk] == ids) {
-                            row = j;
-                            return false;
-                        }
-                    });
+                    var row = Table.api.getrowbyid(ids);
                     row.ids = ids;
                     var url = Table.api.replaceurl(options.extend.edit_url, row, table);
                     Fast.api.open(url, __('Edit'), $(this).data() || {});
@@ -263,12 +281,12 @@ define(['jquery', 'bootstrap', 'moment', 'moment/locale/zh-cn', 'bootstrap-table
                     var id = $(this).data("id");
                     var that = this;
                     Layer.confirm(
-                            __('Are you sure you want to delete this item?'),
-                            {icon: 3, title: __('Warning'), shadeClose: true},
-                            function (index) {
-                                Table.api.multi("del", id, table, that);
-                                Layer.close(index);
-                            }
+                        __('Are you sure you want to delete this item?'),
+                        {icon: 3, title: __('Warning'), shadeClose: true},
+                        function (index) {
+                            Table.api.multi("del", id, table, that);
+                            Layer.close(index);
+                        }
                     );
                 });
                 var id = table.attr("id");
@@ -284,8 +302,21 @@ define(['jquery', 'bootstrap', 'moment', 'moment/locale/zh-cn', 'bootstrap-table
                 url = this.replaceurl(url, {ids: ids}, table);
                 var params = typeof data.params !== "undefined" ? (typeof data.params == 'object' ? $.param(data.params) : data.params) : '';
                 var options = {url: url, data: {action: action, ids: ids, params: params}};
-                Fast.api.ajax(options, function (data) {
+                Fast.api.ajax(options, function (data, ret) {
+                    var success = $(element).data("success") || $.noop;
+                    if (typeof success === 'function') {
+                        if (false === success.call(element, data, ret)) {
+                            return false;
+                        }
+                    }
                     table.bootstrapTable('refresh');
+                }, function (data, ret) {
+                    var error = $(element).data("error") || $.noop;
+                    if (typeof error === 'function') {
+                        if (false === error.call(element, data, ret)) {
+                            return false;
+                        }
+                    }
                 });
             },
             // 单元格元素事件
@@ -314,14 +345,14 @@ define(['jquery', 'bootstrap', 'moment', 'moment/locale/zh-cn', 'bootstrap-table
                             top = left = undefined;
                         }
                         Layer.confirm(
-                                __('Are you sure you want to delete this item?'),
-                                {icon: 3, title: __('Warning'), offset: [top, left], shadeClose: true},
-                                function (index) {
-                                    var table = $(that).closest('table');
-                                    var options = table.bootstrapTable('getOptions');
-                                    Table.api.multi("del", row[options.pk], table, that);
-                                    Layer.close(index);
-                                }
+                            __('Are you sure you want to delete this item?'),
+                            {icon: 3, title: __('Warning'), offset: [top, left], shadeClose: true},
+                            function (index) {
+                                var table = $(that).closest('table');
+                                var options = table.bootstrapTable('getOptions');
+                                Table.api.multi("del", row[options.pk], table, that);
+                                Layer.close(index);
+                            }
                         );
                     }
                 }
@@ -416,9 +447,32 @@ define(['jquery', 'bootstrap', 'moment', 'moment/locale/zh-cn', 'bootstrap-table
                     var options = table ? table.bootstrapTable('getOptions') : {};
                     // 默认按钮组
                     var buttons = $.extend([], this.buttons || []);
-                    buttons.push({name: 'dragsort', icon: 'fa fa-arrows', classname: 'btn btn-xs btn-primary btn-dragsort'});
-                    buttons.push({name: 'edit', icon: 'fa fa-pencil', classname: 'btn btn-xs btn-success btn-editone', url: options.extend.edit_url});
-                    buttons.push({name: 'del', icon: 'fa fa-trash', classname: 'btn btn-xs btn-danger btn-delone'});
+
+                    if (options.extend.dragsort_url !== '') {
+                        buttons.push({
+                            name: 'dragsort',
+                            icon: 'fa fa-arrows',
+                            title: __('Drag to sort'),
+                            classname: 'btn btn-xs btn-primary btn-dragsort'
+                        });
+                    }
+                    if (options.extend.edit_url !== '') {
+                        buttons.push({
+                            name: 'edit',
+                            icon: 'fa fa-pencil',
+                            title: __('Edit'),
+                            classname: 'btn btn-xs btn-success btn-editone',
+                            url: options.extend.edit_url
+                        });
+                    }
+                    if (options.extend.del_url !== '') {
+                        buttons.push({
+                            name: 'del',
+                            icon: 'fa fa-trash',
+                            title: __('Del'),
+                            classname: 'btn btn-xs btn-danger btn-delone'
+                        });
+                    }
                     return Table.api.buttonlink(this, buttons, value, row, index, 'operate');
                 },
                 buttons: function (value, row, index) {
@@ -432,7 +486,7 @@ define(['jquery', 'bootstrap', 'moment', 'moment/locale/zh-cn', 'bootstrap-table
                 type = typeof type === 'undefined' ? 'buttons' : type;
                 var options = table ? table.bootstrapTable('getOptions') : {};
                 var html = [];
-                var url, classname, icon, text, title, extend;
+                var hidden, url, classname, icon, text, title, refresh, confirm, extend;
                 var fieldIndex = column.fieldIndex;
 
                 $.each(buttons, function (i, j) {
@@ -446,8 +500,12 @@ define(['jquery', 'bootstrap', 'moment', 'moment/locale/zh-cn', 'bootstrap-table
                     }
                     var attr = table.data(type + "-" + j.name);
                     if (typeof attr === 'undefined' || attr) {
+                        hidden = typeof j.hidden === 'function' ? j.hidden.call(table, row, j) : (j.hidden ? j.hidden : false);
+                        if (hidden) {
+                            return true;
+                        }
                         url = j.url ? j.url : '';
-                        url = url ? Fast.api.fixurl(Table.api.replaceurl(url, row, table)) : 'javascript:;';
+                        url = typeof url === 'function' ? url.call(table, row, j) : (url ? Fast.api.fixurl(Table.api.replaceurl(url, row, table)) : 'javascript:;');
                         classname = j.classname ? j.classname : 'btn-primary btn-' + name + 'one';
                         icon = j.icon ? j.icon : '';
                         text = j.text ? j.text : '';
@@ -505,6 +563,22 @@ define(['jquery', 'bootstrap', 'moment', 'moment/locale/zh-cn', 'bootstrap-table
                 index = parseInt(index);
                 var data = table.bootstrapTable('getData');
                 return typeof data[index] !== 'undefined' ? data[index] : null;
+            },
+            // 根据行索引获取行数据
+            getrowbyindex: function (table, index) {
+                return Table.api.getrowdata(table, index);
+            },
+            // 根据主键ID获取行数据
+            getrowbyid: function (table, id) {
+                var row = {};
+                var options = table.bootstrapTable("getOptions");
+                $.each(table.bootstrapTable('getData'), function (i, j) {
+                    if (j[options.pk] == id) {
+                        row = j;
+                        return false;
+                    }
+                });
+                return row;
             }
         },
     };

@@ -22,7 +22,7 @@ if (!function_exists('__'))
             array_shift($vars);
             $lang = '';
         }
-        return think\Lang::get($name, $vars, $lang);
+        return \think\Lang::get($name, $vars, $lang);
     }
 
 }
@@ -89,7 +89,7 @@ if (!function_exists('cdnurl'))
      */
     function cdnurl($url)
     {
-        return preg_match("/^https?:\/\/(.*)/i", $url) ? $url : think\Config::get('upload.cdnurl') . $url;
+        return preg_match("/^https?:\/\/(.*)/i", $url) ? $url : \think\Config::get('upload.cdnurl') . $url;
     }
 
 }
@@ -208,7 +208,6 @@ if (!function_exists('mb_ucfirst'))
 
 }
 
-
 if (!function_exists('addtion'))
 {
 
@@ -301,16 +300,36 @@ if (!function_exists('addtion'))
 
 }
 
-if (!function_exists('get_proxy_ip')){
+if (!function_exists('var_export_short'))
+{
+
     /**
-     * 获取客户端真实IP
+     * 返回打印数组结构
+     * @param string $var   数组
+     * @param string $indent 缩进字符
      * @return string
      */
-    function get_proxy_ip() {
-        $socket = socket_create(AF_INET, SOCK_STREAM, 6);
-        $ret = socket_connect($socket,'ns1.dnspod.net',6666);
-        $buf = socket_read($socket, 16);
-        socket_close($socket);
-        return $buf;
+    function var_export_short($var, $indent = "")
+    {
+        switch (gettype($var))
+        {
+            case "string":
+                return '"' . addcslashes($var, "\\\$\"\r\n\t\v\f") . '"';
+            case "array":
+                $indexed = array_keys($var) === range(0, count($var) - 1);
+                $r = [];
+                foreach ($var as $key => $value)
+                {
+                    $r[] = "$indent    "
+                            . ($indexed ? "" : var_export_short($key) . " => ")
+                            . var_export_short($value, "$indent    ");
+                }
+                return "[\n" . implode(",\n", $r) . "\n" . $indent . "]";
+            case "boolean":
+                return $var ? "TRUE" : "FALSE";
+            default:
+                return var_export($var, TRUE);
+        }
     }
+
 }

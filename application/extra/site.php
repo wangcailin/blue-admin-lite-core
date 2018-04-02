@@ -1,7 +1,7 @@
 <?php
 
 return array (
-  'name' => 'BlueAdmin',
+  'name' => 'FastAdmin',
   'beian' => '',
   'cdnurl' => '',
   'version' => '1.0.1',

@@ -42,7 +42,7 @@ define(['jquery', 'bootstrap', 'toastr', 'layer', 'lang'], function ($, undefine
                         return;
                     }
                 }
-                Toastr.error(ret.msg + "(code:" + ret.code + ")");
+                Toastr.error(ret.msg);
             },
             //服务器响应数据后
             onAjaxResponse: function (response) {
@@ -89,6 +89,8 @@ define(['jquery', 'bootstrap', 'toastr', 'layer', 'lang'], function ($, undefine
                     if (!r.test(url)) {
                         url = Config.moduleurl + "/" + url;
                     }
+                } else if (url.substr(0, 8) === "/addons/") {
+                    url = Config.__PUBLIC__.replace(/(\/*$)/g, "") + url;
                 }
                 return url;
             },
@@ -162,8 +164,7 @@ define(['jquery', 'bootstrap', 'toastr', 'layer', 'lang'], function ($, undefine
                     options.area = [top.$(".tab-pane.active").width() + "px", top.$(".tab-pane.active").height() + "px"];
                     options.offset = [top.$(".tab-pane.active").scrollTop() + "px", "0px"];
                 }
-                Layer.open(options);
-                return false;
+                return Layer.open(options);
             },
             //关闭窗口并回传数据
             close: function (data) {
