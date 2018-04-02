@@ -333,3 +333,42 @@ if (!function_exists('var_export_short'))
     }
 
 }
+
+
+if (!function_exists('export_excel')){
+
+    /**
+     * 导出为Excel
+     * @param null $data        数据
+     * @param null $title       标题
+     * @param null $filename    文件标题
+     */
+    function export_excel($data = null, $title = null, $filename = null) {
+        header('Content-Type: text/xls');
+        header( "Content-type:application/vnd.ms-excel; charset=utf-8" );
+        header('Content-Disposition: attachment;filename="' .$filename . '.xls"');
+        header('Cache-Control:must-revalidate,post-check=0,pre-check=0');
+        header('Expires:0');
+        header('Pragma:public');
+        $table = '<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />';
+        $table .= '<table><tr>';
+        $res = '';
+        if (!empty($title)){
+            foreach ($title as $k => $v) {
+                $res .= '<th>'.$v.'</th>';
+            }
+        }
+        $table .= $res.'</tr>';
+        if (!empty($data)){
+            foreach($data as $key=>$val){
+                $table .='<tr>';
+                foreach ($val as $k=>$v){
+                    $table .= '<td>'.$v.'</td>';
+                }
+                $table .='</tr>';
+            }
+        }
+        $table .= '</table>';
+        echo $table;
+    }
+}
