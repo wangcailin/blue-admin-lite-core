@@ -1,0 +1,19 @@
+<?php
+
+namespace {%controllerNamespace%};
+
+use think\Controller;
+
+/**
+ * @project {%projectName%}
+ */
+class {%controllerName%} extends Controller
+{
+
+    public function _initialize()
+    {
+        parent::_initialize();
+    }
+    
+{%controllerFunction%}
+}
