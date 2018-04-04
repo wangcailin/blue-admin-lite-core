@@ -260,6 +260,7 @@ INSERT INTO `fa_auth_rule` VALUES (91, 'file', 88, 'command/detail', '详情', '
 INSERT INTO `fa_auth_rule` VALUES (92, 'file', 88, 'command/execute', '运行', 'fa fa-circle-o', '', '', 0, 1522652595, 1522652595, 0, 'normal');
 INSERT INTO `fa_auth_rule` VALUES (93, 'file', 88, 'command/del', '删除', 'fa fa-circle-o', '', '', 0, 1522652595, 1522652595, 0, 'normal');
 INSERT INTO `fa_auth_rule` VALUES (94, 'file', 88, 'command/multi', '批量更新', 'fa fa-circle-o', '', '', 0, 1522652595, 1522652595, 0, 'normal');
+INSERT INTO `fa_auth_rule` VALUES (95, 'file', 0, 'importpagefile/index', '导入前端文件', 'fa fa-file-zip-o', '', '', 1, 1522742677, 1522742697, 0, 'normal');
 COMMIT;
 
 -- ----------------------------
