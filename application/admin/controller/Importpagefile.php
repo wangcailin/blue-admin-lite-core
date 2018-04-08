@@ -78,6 +78,9 @@ class Importpagefile extends Backend
     {
         $fileDir = session('filedir');
         $formData = input('row/a');
+
+        if (!$formData['js'] && !$formData['css'] && !$formData['img'] && !$formData['fonts'] && !$formData['project'] && !$formData['module']){$this->error('数据错误！');}
+
         $jsDir = ROOT_PATH . 'public/assets/js/index/' . $formData['project'] . DS;
         $cssDir = ROOT_PATH . 'public/assets/css/index/' . $formData['project'] . DS;
         $imgDir = ROOT_PATH . 'public/assets/img/index/' . $formData['project'] . DS;

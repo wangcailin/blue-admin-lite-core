@@ -13,6 +13,10 @@ define(['jquery', 'bootstrap', 'backend', 'addtabs', 'adminlte', 'form', 'upload
                     data:$('#add-form').serialize(),// 序列化表单值
                     async: false,
                     success: function(ret) {
+                        if (ret.code == '0'){
+                            Toastr.error(ret.msg);
+                            return;
+                        }
                         Toastr.success(ret.msg);
                         Layer.alert();
                         layer.open({
