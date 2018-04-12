@@ -32,11 +32,12 @@
             </li>
             
             <li>
-                <a href="javascript:;" data-toggle="wipecache" title="{:__('Wipe cache')}">
+                <a href="javascript:;" data-toggle="dropdown" title="{:__('Wipe cache')}">
                     <i class="fa fa-trash"></i>
                 </a>
             </li>
 
+            {if $Think.config.lang_switch_on}
             <li class="hidden-xs">
                 <a href="javascript:;" class="dropdown-toggle" data-toggle="dropdown"><i class="fa fa-language"></i></a>
                 <ul class="dropdown-menu">
@@ -48,6 +49,7 @@
                     </li>
                 </ul>
             </li>
+            {/if}
 
             <li class="hidden-xs">
                 <a href="#" data-toggle="fullscreen"><i class="fa fa-arrows-alt"></i></a>
@@ -86,16 +88,18 @@
                     <!-- Menu Footer-->
                     <li class="user-footer">
                         <div class="pull-left">
-                            <a href="general/profile" class="btn btn-primary addtabsit"><i class="fa fa-user"></i> {:__('Profile')}</a>
+                            <a href="general/profile" class="btn btn-primary addtabsit"><i class="fa fa-user"></i>
+                                {:__('Profile')}</a>
                         </div>
                         <div class="pull-right">
-                            <a href="{:url('index/logout')}" class="btn btn-danger"><i class="fa fa-sign-out"></i> {:__('Logout')}</a>
+                            <a href="{:url('index/logout')}" class="btn btn-danger"><i class="fa fa-sign-out"></i>
+                                {:__('Logout')}</a>
                         </div>
                     </li>
                 </ul>
             </li>
             <!-- 控制栏切换按钮 -->
-            <li>
+            <li class="hidden-xs">
                 <a href="javascript:;" data-toggle="control-sidebar"><i class="fa fa-gears"></i></a>
             </li>
         </ul>
